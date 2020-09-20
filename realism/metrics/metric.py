@@ -36,18 +36,18 @@ class Metric:
         for k, v in simulated.items():
             simulated[k] = np.array(v)
         first_sim = simulated[list(simulated.keys())[0]]
-        x = np.arange(first_sim.shape[1])+1
+        x = np.arange(first_sim.shape[1]) + 1
 
         for k, v in simulated.items():
             err_simulated = np.nanstd(v, axis=0)
             v = np.nanmean(v, axis=0)
             plt.plot(x, v, color=k[1], linewidth=4, label=k[0])
-            #plt.fill_between(x, v-err_simulated, v+err_simulated, alpha=.1, color=k[1]).set_linestyle('dashed')
+            # plt.fill_between(x, v-err_simulated, v+err_simulated, alpha=.1, color=k[1]).set_linestyle('dashed')
 
         plt.xticks(x)
         plt.title(title + (" (log scale)" if logy else ""))
         plt.xlabel(xlabel)
         plt.ylabel(ylabel + (" (log)" if logy else ""))
-        if (logy):
+        if logy:
             plt.yscale("log")
         plt.legend()

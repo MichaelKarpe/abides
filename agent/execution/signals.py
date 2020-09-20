@@ -1,5 +1,3 @@
-
-
 def mid_price(best_bid_price, best_ask_price):
     return (best_bid_price + best_ask_price) / 2
 

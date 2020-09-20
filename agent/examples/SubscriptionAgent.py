@@ -17,8 +17,8 @@ class SubscriptionAgent(TradingAgent):
         self.subscribe = True  # Flag to determine whether to subscribe to data or use polling mechanism
         self.subscription_requested = False
         self.last_update_ts = None  # timestamp of the last agent update.
-                                    # This is NOT required but only used to demonstrate how subscription works
-        self.state = 'AWAITING_MARKET_DATA'
+        # This is NOT required but only used to demonstrate how subscription works
+        self.state = "AWAITING_MARKET_DATA"
         self.current_bids = None
         self.current_asks = None
 
@@ -34,8 +34,8 @@ class SubscriptionAgent(TradingAgent):
 
     def receiveMessage(self, currentTime, msg):
         super().receiveMessage(currentTime, msg)
-        if self.subscribe and self.state == 'AWAITING_MARKET_DATA' and msg.body['msg'] == 'MARKET_DATA':
-            bids, asks = msg.body['bids'], msg.body['asks']
+        if self.subscribe and self.state == "AWAITING_MARKET_DATA" and msg.body["msg"] == "MARKET_DATA":
+            bids, asks = msg.body["bids"], msg.body["asks"]
             log_print("--------------------")
             log_print("seconds elapsed since last update: {}", (currentTime - self.last_update_ts).delta / 1e9)
             log_print("number of bid levels: {}", len(bids))
@@ -49,4 +49,4 @@ class SubscriptionAgent(TradingAgent):
             self.current_asks = asks
 
     def getWakeFrequency(self):
-        return pd.Timedelta('1s')
+        return pd.Timedelta("1s")

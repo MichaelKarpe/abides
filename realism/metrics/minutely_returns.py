@@ -4,7 +4,6 @@ import numpy as np
 
 
 class MinutelyReturns(Metric):
-
     def compute(self, df):
         df = df["close"]
         df = np.log(df)
@@ -12,4 +11,4 @@ class MinutelyReturns(Metric):
         return df.tolist()
 
     def visualize(self, simulated):
-        self.hist(simulated, title="Minutely Log Returns", xlabel="Log Returns", log=True, clip=.05)
+        self.hist(simulated, title="Minutely Log Returns", xlabel="Log Returns", log=True, clip=0.05)

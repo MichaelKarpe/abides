@@ -52,7 +52,7 @@ class Order:
 
     def to_dict(self):
         as_dict = deepcopy(self).__dict__
-        as_dict['time_placed'] = self.time_placed.isoformat()
+        as_dict["time_placed"] = self.time_placed.isoformat()
         return as_dict
 
     def __copy__(self):

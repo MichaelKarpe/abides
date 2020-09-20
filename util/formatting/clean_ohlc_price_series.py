@@ -17,10 +17,10 @@ df.level_1 = pd.to_datetime(df.level_1)
 
 symbol = sample(df.index.unique().tolist(), 1)[0]
 print(symbol, filename)
-df = df[df.index==symbol]
+df = df[df.index == symbol]
 df.set_index("level_1", inplace=True)
 
-df = np.round((1000*df/df.iloc[0]).dropna())
-df = (df["open"]*100).astype("int")
+df = np.round((1000 * df / df.iloc[0]).dropna())
+df = (df["open"] * 100).astype("int")
 df.index = df.index - pd.DateOffset(year=2000, month=1, day=1)
 pd.to_pickle(df, "clean.pkl".format(symbol, filename[:-4]))

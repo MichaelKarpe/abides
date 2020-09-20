@@ -5,7 +5,6 @@ import pandas as pd
 
 
 class Autocorrelation(Metric):
-
     def __init__(self, lag=1, window=30):
         self.lag = lag
         self.window = window
@@ -22,5 +21,9 @@ class Autocorrelation(Metric):
         for k, v in simulated.items():
             random.shuffle(v)
             simulated[k] = v[:min_sim]
-        self.hist(simulated, title="Autocorrelation (lag={}, window={})".format(self.lag, self.window), xlabel="Correlation coefficient", log=False)
-
+        self.hist(
+            simulated,
+            title="Autocorrelation (lag={}, window={})".format(self.lag, self.window),
+            xlabel="Correlation coefficient",
+            log=False,
+        )

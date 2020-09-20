@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+
 p = str(Path(__file__).resolve().parents[1])  # directory one level up from this file
 sys.path.append(p)
 from util.formatting.convert_order_stream import dir_path
@@ -23,7 +24,7 @@ class Constants:
     legend_font_size = 20
     axes_label_font_size = 20
     title_font_size = 22
-    scatter_marker_styles_sizes = [('x', 60), ('+', 60), ('o', 14), (',', 60)]
+    scatter_marker_styles_sizes = [("x", 60), ("+", 60), ("o", 14), (",", 60)]
 
     # Generalised Mixture model fit params
     norm_spike_sigma = 0.15
@@ -53,7 +54,7 @@ def bundled_stream_limit_order_sizes(bundled_streams):
         print(f"Processing elem {idx + 1} of {len(bundled_streams)}")
         orders_df = elem["orders_df"]
         symbol = elem["symbol"]
-        limit_orders = orders_df[orders_df['TYPE'] == "LIMIT_ORDER"]["SIZE"]
+        limit_orders = orders_df[orders_df["TYPE"] == "LIMIT_ORDER"]["SIZE"]
 
         if symbol not in limit_order_sizes_dict.keys():
             limit_order_sizes_dict[symbol] = limit_orders
@@ -64,7 +65,7 @@ def bundled_stream_limit_order_sizes(bundled_streams):
 
 
 def fit_pomegranate_model(x, num_spikes, log_mu, log_sigma, model_file):
-    """ Fits a generalised mixture model using the pomegranate library to 1D data.
+    """Fits a generalised mixture model using the pomegranate library to 1D data.
 
     Mixture model is comprised of the following components:
       - A lognormal distribution
@@ -89,15 +90,12 @@ def fit_pomegranate_model(x, num_spikes, log_mu, log_sigma, model_file):
     X = np.array(x).reshape((x.size, 1))
 
     print("Fitting Generalised Mixture Model...")
-    model.fit(X,
-              inertia=Constants.EM_inertia,
-              verbose=True,
-              n_jobs=-1)
+    model.fit(X, inertia=Constants.EM_inertia, verbose=True, n_jobs=-1)
 
     print("Generalised Mixture Model (GMM) fit params.")
     print(model.to_json())
 
-    with open(model_file, 'w', encoding='utf-8') as f:
+    with open(model_file, "w", encoding="utf-8") as f:
         f.write(model.to_json())
 
     return model
@@ -105,7 +103,7 @@ def fit_pomegranate_model(x, num_spikes, log_mu, log_sigma, model_file):
 
 def normalise_pdf(p, x):
     """
-        For plotting, takes pdf p evaluated at points x and divides by binwidth for visual aid against histograms
+    For plotting, takes pdf p evaluated at points x and divides by binwidth for visual aid against histograms
 
     """
     bins = np.diff(x)
@@ -120,12 +118,12 @@ def make_plot_x_axis(xlim):
     return np.sort(xx)
 
 
-def plot_limit_order_sizes(limit_order_sizes_dict, output_dir, model_file, scale='log'):
+def plot_limit_order_sizes(limit_order_sizes_dict, output_dir, model_file, scale="log"):
     """ Plots histogram of the limit order sizes for symbols. """
 
     fig, ax = plt.subplots(figsize=(Constants.fig_width, Constants.fig_height))
 
-    if scale == 'log':
+    if scale == "log":
         ax.set(xscale="log", yscale="log")
 
     ax.set_ylabel(Constants.limit_order_sizes_ylabel)
@@ -142,8 +140,16 @@ def plot_limit_order_sizes(limit_order_sizes_dict, output_dir, model_file, scale
         limit_order_sizes_series = limit_order_sizes_dict[symbol]
         x = limit_order_sizes_series.sort_values(ascending=True)
         x_s.append(x)
-        plt.hist(x, bins="sqrt", density=True, label=symbol, color=color, alpha=alpha, histtype="step",
-                 linewidth=Constants.limit_order_size_hist_linewidth)
+        plt.hist(
+            x,
+            bins="sqrt",
+            density=True,
+            label=symbol,
+            color=color,
+            alpha=alpha,
+            histtype="step",
+            linewidth=Constants.limit_order_size_hist_linewidth,
+        )
 
     ylim = ax.get_ylim()
     xlim = ax.get_xlim()
@@ -154,43 +160,75 @@ def plot_limit_order_sizes(limit_order_sizes_dict, output_dir, model_file, scale
     for x, symbol, color in zip(x_s, symbols, colors):
         model = fit_pomegranate_model(x, Constants.num_norm_spikes, Constants.log_mu, Constants.log_sigma, model_file)
         normed = normalise_pdf(model.probability(xx), xx)
-        plt.plot(xx, normed, linestyle="-.", color=color,
-                 label=f"{symbol} GMM fit", linewidth=Constants.limit_order_size_fit_linewidth)
+        plt.plot(
+            xx,
+            normed,
+            linestyle="-.",
+            color=color,
+            label=f"{symbol} GMM fit",
+            linewidth=Constants.limit_order_size_fit_linewidth,
+        )
 
     plt.legend(fontsize=Constants.legend_font_size)
     ax.set_ylim(ylim)
 
     plt.show()
-    fig.savefig(f'{output_dir}/{Constants.limit_order_sizes_filename}.png', format='png', dpi=300,
-                transparent=False, bbox_inches='tight', pad_inches=0.03)
+    fig.savefig(
+        f"{output_dir}/{Constants.limit_order_sizes_filename}.png",
+        format="png",
+        dpi=300,
+        transparent=False,
+        bbox_inches="tight",
+        pad_inches=0.03,
+    )
 
     return
 
 
 def set_up_plotting():
     """ Sets matplotlib variables for plotting. """
-    plt.rc('xtick', labelsize=Constants.tick_label_size)
-    plt.rc('ytick', labelsize=Constants.tick_label_size)
-    plt.rc('legend', fontsize=Constants.legend_font_size)
-    plt.rc('axes', labelsize=Constants.axes_label_font_size)
+    plt.rc("xtick", labelsize=Constants.tick_label_size)
+    plt.rc("ytick", labelsize=Constants.tick_label_size)
+    plt.rc("legend", fontsize=Constants.legend_font_size)
+    plt.rc("axes", labelsize=Constants.axes_label_font_size)
 
 
 if __name__ == "__main__":
 
     # Create cache and visualizations folders if they do not exist
-    try: os.mkdir("cache")
-    except: pass
-    try: os.mkdir("visualizations")
-    except: pass
-    try: os.mkdir("order_size_models")
-    except: pass
+    try:
+        os.mkdir("cache")
+    except:
+        pass
+    try:
+        os.mkdir("visualizations")
+    except:
+        pass
+    try:
+        os.mkdir("order_size_models")
+    except:
+        pass
 
-    parser = argparse.ArgumentParser(description='Process order stream files and produce plots of order size (limit and executed).')
-    parser.add_argument('targetdir', type=dir_path, help='Path of directory containing order stream files. Note that they must have been preprocessed'
-                                                         ' by formatting scripts into format orders_{symbol}_{date_str}.pkl')
-    parser.add_argument('-o', '--output-dir', default='visualizations', help='Path to plot output directory', type=dir_path)
-    parser.add_argument('-f', '--model-file', default='limit_order_size_model.json', help='Path to output order size model file', type=Path)
-    parser.add_argument('-z', '--recompute', action="store_true", help="Rerun computations without caching.")
+    parser = argparse.ArgumentParser(
+        description="Process order stream files and produce plots of order size (limit and executed)."
+    )
+    parser.add_argument(
+        "targetdir",
+        type=dir_path,
+        help="Path of directory containing order stream files. Note that they must have been preprocessed"
+        " by formatting scripts into format orders_{symbol}_{date_str}.pkl",
+    )
+    parser.add_argument(
+        "-o", "--output-dir", default="visualizations", help="Path to plot output directory", type=dir_path
+    )
+    parser.add_argument(
+        "-f",
+        "--model-file",
+        default="limit_order_size_model.json",
+        help="Path to output order size model file",
+        type=Path,
+    )
+    parser.add_argument("-z", "--recompute", action="store_true", help="Rerun computations without caching.")
     args, remaining_args = parser.parse_known_args()
 
     bundled_orders_dict = unpickle_stream_dfs_to_stream_list(args.targetdir)

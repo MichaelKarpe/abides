@@ -15,11 +15,11 @@ from util.order import LimitOrder
 util.silent_mode = True
 LimitOrder.silent_mode = True
 
-SECURITY = 'ABS'
-DATE = '20200101'
+SECURITY = "ABS"
+DATE = "20200101"
 
-MKT_OPEN_TIME = '09:30:00'
-MKT_CLOSE_TIME = '16:00:00'
+MKT_OPEN_TIME = "09:30:00"
+MKT_CLOSE_TIME = "16:00:00"
 
 # (1) Noise Agents
 N_NOISE = 5000
@@ -52,11 +52,11 @@ N_MOMENTUM = 25
 CASH_MOMENTUM = 1e7
 MOMENTUM_MIN_SIZE = 1
 MOMENTUM_MAX_SIZE = 10
-MOMENTUM_WAKE_UP_FREQ = '20S'
+MOMENTUM_WAKE_UP_FREQ = "20S"
 
 
 def get_abs_config(global_seed, test=False):
-    """ create the list of agents for the simulation
+    """create the list of agents for the simulation
     :param global_seed: global seed for the simulation
     """
 
@@ -65,46 +65,63 @@ def get_abs_config(global_seed, test=False):
     agent_count, agents, agent_types = 0, [], []
 
     # 1) Exchange Agent
-    agents.extend([ExchangeAgent(id=0,
-                                 name="EXCHANGE_AGENT",
-                                 type="ExchangeAgent",
-                                 mkt_open=pd.to_datetime(f'{DATE} {MKT_OPEN_TIME}'),
-                                 mkt_close=pd.to_datetime(f'{DATE} {MKT_CLOSE_TIME}'),
-                                 symbols=[SECURITY],
-                                 log_orders=test,
-                                 pipeline_delay=0,
-                                 computation_delay=0,
-                                 stream_history=int(1e2),
-                                 book_freq=0 if test else None,
-                                 random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)))])
+    agents.extend(
+        [
+            ExchangeAgent(
+                id=0,
+                name="EXCHANGE_AGENT",
+                type="ExchangeAgent",
+                mkt_open=pd.to_datetime(f"{DATE} {MKT_OPEN_TIME}"),
+                mkt_close=pd.to_datetime(f"{DATE} {MKT_CLOSE_TIME}"),
+                symbols=[SECURITY],
+                log_orders=test,
+                pipeline_delay=0,
+                computation_delay=0,
+                stream_history=int(1e2),
+                book_freq=0 if test else None,
+                random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)),
+            )
+        ]
+    )
     agent_count += 1
 
     # 2) Noise Agents
-    agents.extend([NoiseAgent(id=j,
-                              name="NOISE_AGENT_{}".format(j),
-                              type="NoiseAgent",
-                              symbol=SECURITY,
-                              starting_cash=CASH_NOISE,
-                              wakeup_time=util.get_wake_time(pd.Timestamp(f'{DATE} 09:00:00'),
-                                                             pd.Timestamp(f'{DATE} 16:00:00')),
-                              log_orders=test,
-                              random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)))
-                   for j in range(agent_count, agent_count + N_NOISE)])
+    agents.extend(
+        [
+            NoiseAgent(
+                id=j,
+                name="NOISE_AGENT_{}".format(j),
+                type="NoiseAgent",
+                symbol=SECURITY,
+                starting_cash=CASH_NOISE,
+                wakeup_time=util.get_wake_time(pd.Timestamp(f"{DATE} 09:00:00"), pd.Timestamp(f"{DATE} 16:00:00")),
+                log_orders=test,
+                random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)),
+            )
+            for j in range(agent_count, agent_count + N_NOISE)
+        ]
+    )
     agent_count += N_NOISE
 
     # 3) Value Agents
-    agents.extend([ValueAgent(id=j,
-                              name="Value Agent {}".format(j),
-                              type="ValueAgent",
-                              symbol=SECURITY,
-                              starting_cash=CASH_VALUE,
-                              sigma_n=SIGMA_N,
-                              r_bar=R_BAR,
-                              kappa=KAPPA,
-                              lambda_a=LAMBDA_A,
-                              log_orders=test,
-                              random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)))
-                   for j in range(agent_count, agent_count + N_VALUE)])
+    agents.extend(
+        [
+            ValueAgent(
+                id=j,
+                name="Value Agent {}".format(j),
+                type="ValueAgent",
+                symbol=SECURITY,
+                starting_cash=CASH_VALUE,
+                sigma_n=SIGMA_N,
+                r_bar=R_BAR,
+                kappa=KAPPA,
+                lambda_a=LAMBDA_A,
+                log_orders=test,
+                random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)),
+            )
+            for j in range(agent_count, agent_count + N_VALUE)
+        ]
+    )
     agent_count += N_VALUE
 
     # 4) Market Maker Agents
@@ -119,38 +136,50 @@ def get_abs_config(global_seed, test=False):
     # each elem of mm_params is tuple (window_size, pov, num_ticks, wake_up_freq)
     # mm_params = [(2, 0.02, 1, '1S'), (4, 0.01, 4, '10S'), (10, 0.005, 100, '2min')]
     # mm_params = [(8, 0.02, 4, '10S'), (12, 0.005, 100, '2min')]
-    mm_params = [(5, 0.10, 5, '10S')]
+    mm_params = [(5, 0.10, 5, "10S")]
     N_MARKET_MAKERS = len(mm_params)
 
     mm_min_order_size = 25  # Minimum size of of order placed in `transacted_volume * mm_pov` is smaller
 
-    agents.extend([POVMarketMakerAgent(id=j,
-                                       name="POV_MARKET_MAKER_AGENT_{}".format(j),
-                                       type='POVMarketMakerAgent',
-                                       symbol=SECURITY,
-                                       starting_cash=CASH_MARKET_MAKERS,
-                                       pov=mm_params[idx][1],
-                                       min_order_size=mm_min_order_size,
-                                       window_size=mm_params[idx][0],
-                                       num_ticks=mm_params[idx][2],
-                                       wake_up_freq=mm_params[idx][3],
-                                       log_orders=test,
-                                       random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)))
-                   for idx, j in enumerate(range(agent_count, agent_count + N_MARKET_MAKERS))])
+    agents.extend(
+        [
+            POVMarketMakerAgent(
+                id=j,
+                name="POV_MARKET_MAKER_AGENT_{}".format(j),
+                type="POVMarketMakerAgent",
+                symbol=SECURITY,
+                starting_cash=CASH_MARKET_MAKERS,
+                pov=mm_params[idx][1],
+                min_order_size=mm_min_order_size,
+                window_size=mm_params[idx][0],
+                num_ticks=mm_params[idx][2],
+                wake_up_freq=mm_params[idx][3],
+                log_orders=test,
+                random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)),
+            )
+            for idx, j in enumerate(range(agent_count, agent_count + N_MARKET_MAKERS))
+        ]
+    )
     agent_count += N_MARKET_MAKERS
 
     # 5) Momentum Agents
-    agents.extend([MomentumAgent(id=j,
-                                 name="MOMENTUM_AGENT_{}".format(j),
-                                 type="MomentumAgent",
-                                 symbol=SECURITY,
-                                 starting_cash=CASH_MOMENTUM,
-                                 min_size=MOMENTUM_MIN_SIZE,
-                                 max_size=MOMENTUM_MAX_SIZE,
-                                 wake_up_freq=MOMENTUM_WAKE_UP_FREQ,
-                                 log_orders=test,
-                                 random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)))
-                   for j in range(agent_count, agent_count + N_MOMENTUM)])
+    agents.extend(
+        [
+            MomentumAgent(
+                id=j,
+                name="MOMENTUM_AGENT_{}".format(j),
+                type="MomentumAgent",
+                symbol=SECURITY,
+                starting_cash=CASH_MOMENTUM,
+                min_size=MOMENTUM_MIN_SIZE,
+                max_size=MOMENTUM_MAX_SIZE,
+                wake_up_freq=MOMENTUM_WAKE_UP_FREQ,
+                log_orders=test,
+                random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)),
+            )
+            for j in range(agent_count, agent_count + N_MOMENTUM)
+        ]
+    )
     agent_count += N_MOMENTUM
 
     return agents, agent_count

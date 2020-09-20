@@ -7,71 +7,64 @@ from util.util import log_print
 # to serve as an example in which a service agent performs some aggregated
 # computation for multiple clients and returns the result to all clients.
 
+
 class SumServiceAgent(Agent):
+    def __init__(self, id, name, type, random_state=None, num_clients=10):
+        # Base class init.
+        super().__init__(id, name, type, random_state)
 
-  def __init__(self, id, name, type, random_state=None, num_clients=10):
-    # Base class init.
-    super().__init__(id, name, type, random_state)
+        # How many clients should we wait for?
+        self.num_clients = num_clients
 
-    # How many clients should we wait for?
-    self.num_clients = num_clients
+        # A list of the numbers to sum: dictionary keyed by agentID.
+        self.numbers = {}
 
-    # A list of the numbers to sum: dictionary keyed by agentID.
-    self.numbers = {}
+        # We track the total sum for the entire day to print at the end.
+        self.total = 0
 
-    # We track the total sum for the entire day to print at the end.
-    self.total = 0
+    ### Simulation lifecycle messages.
+    def kernelStarting(self, startTime):
+        # self.kernel is set in Agent.kernelInitializing()
 
+        # This agent should have negligible computation delay.
+        self.setComputationDelay(1000000)  # 1 ms
 
-  ### Simulation lifecycle messages.
-  def kernelStarting(self, startTime):
-    # self.kernel is set in Agent.kernelInitializing()
+        # Request a wake-up call as in the base Agent.
+        super().kernelStarting(startTime)
 
-    # This agent should have negligible computation delay.
-    self.setComputationDelay(1000000)    # 1 ms
+    def kernelStopping(self):
+        # Print the total sum for the day, only for completed sum requests.
+        print("Agent {} reports total sum: {}".format(self.id, self.total))
 
-    # Request a wake-up call as in the base Agent.
-    super().kernelStarting(startTime)
+        # Allow the base class to perform stopping activities.
+        super().kernelStopping()
 
+    ### Simulation participation messages.
 
-  def kernelStopping(self):
-    # Print the total sum for the day, only for completed sum requests.
-    print("Agent {} reports total sum: {}".format(self.id, self.total))
+    # The service agent does not require wakeup calls.
 
-    # Allow the base class to perform stopping activities.
-    super().kernelStopping()
+    def receiveMessage(self, currentTime, msg):
+        # Allow the base Agent to do whatever it needs to.
+        super().receiveMessage(currentTime, msg)
 
+        if msg.body["msg"] == "SUM_QUERY":
+            log_print("Agent {} received sum query: {}", self.id, msg)
+            self.numbers[msg.body["sender"]] = (msg.body["n1"], msg.body["n2"])
 
-  ### Simulation participation messages.
+        if len(self.numbers.keys()) >= self.num_clients:
+            # It is time to sum the numbers.
+            self.processSum()
 
-  # The service agent does not require wakeup calls.
+            # Then clear the pending queries.
+            self.numbers = {}
 
-  def receiveMessage (self, currentTime, msg):
-    # Allow the base Agent to do whatever it needs to.
-    super().receiveMessage(currentTime, msg)
+    ### Sum client numbers and respond to each client.
+    def processSum(self):
 
-    if msg.body['msg'] == "SUM_QUERY":
-      log_print("Agent {} received sum query: {}", self.id, msg)
-      self.numbers[msg.body['sender']] = (msg.body['n1'], msg.body['n2'])
+        current_sum = sum([x[0] + x[1] for x in self.numbers.values()])
+        self.total += current_sum
 
-    if len(self.numbers.keys()) >= self.num_clients:
-      # It is time to sum the numbers.
-      self.processSum()
+        log_print("Agent {} computed sum: {}", self.id, current_sum)
 
-      # Then clear the pending queries.
-      self.numbers = {}
-
-
-  ### Sum client numbers and respond to each client.
-  def processSum (self):
-
-    current_sum = sum([ x[0] + x[1] for x in self.numbers.values() ])
-    self.total += current_sum
-
-    log_print("Agent {} computed sum: {}", self.id, current_sum)
-
-    for sender in self.numbers.keys():
-      self.sendMessage(sender, Message({ "msg" : "SUM_QUERY_RESPONSE", "sender": self.id,
-                                         "sum" : current_sum }))
-
-
+        for sender in self.numbers.keys():
+            self.sendMessage(sender, Message({"msg": "SUM_QUERY_RESPONSE", "sender": self.id, "sum": current_sum}))

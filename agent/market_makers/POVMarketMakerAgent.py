@@ -3,10 +3,12 @@ import pandas as pd
 from util.util import log_print
 from collections import namedtuple, deque
 from util.util import ignored
+from math import floor, ceil
 
 
 ANCHOR_TOP_STR = 'top'
 ANCHOR_BOTTOM_STR = 'bottom'
+ANCHOR_MIDDLE_STR = 'middle'
 
 
 class POVMarketMakerAgent(TradingAgent):
@@ -15,8 +17,8 @@ class POVMarketMakerAgent(TradingAgent):
         period.
     """
 
-    def __init__(self, id, name, type, symbol, starting_cash, pov=0.05, min_order_size=20, window_size=5, anchor=ANCHOR_BOTTOM_STR,
-                 num_ticks=20, wake_up_freq='1s', subscribe=False, subscribe_freq=10e9, subscribe_num_levels=1,
+    def __init__(self, id, name, type, symbol, starting_cash, pov=0.05, min_order_size=20, window_size=5, anchor=ANCHOR_MIDDLE_STR,
+                 num_ticks=20, wake_up_freq='1s', subscribe=False, subscribe_freq=10e9, subscribe_num_levels=1, cancel_limit_delay=50,
                  log_orders=False, random_state=None):
 
         super().__init__(id, name, type, starting_cash=starting_cash, log_orders=log_orders, random_state=random_state)
@@ -32,6 +34,7 @@ class POVMarketMakerAgent(TradingAgent):
         self.subscribe_freq = subscribe_freq  # Frequency in nanoseconds^-1 at which to receive market updates
                                               # in subscribe mode
         self.subscribe_num_levels = subscribe_num_levels  # Number of orderbook levels in subscription mode
+        self.cancel_limit_delay  = cancel_limit_delay  # delay in nanoseconds between order cancellations and new limit order placements
         self.log_orders = log_orders
 
         ## Internal variables
@@ -58,12 +61,12 @@ class POVMarketMakerAgent(TradingAgent):
 
     def validateAnchor(self, anchor):
         """ Checks that input parameter anchor takes allowed value, raises ValueError if not.
-
         :param anchor: str
         :return:
         """
-        if anchor not in [ANCHOR_TOP_STR, ANCHOR_BOTTOM_STR]:
-            raise ValueError(f"Variable anchor must take the value `{ANCHOR_BOTTOM_STR}` or `{ANCHOR_TOP_STR}`")
+        if anchor not in [ANCHOR_TOP_STR, ANCHOR_BOTTOM_STR, ANCHOR_MIDDLE_STR]:
+            raise ValueError(f"Variable anchor must take the value `{ANCHOR_BOTTOM_STR}`, `{ANCHOR_MIDDLE_STR}` or "
+                             f"`{ANCHOR_TOP_STR}`")
         else:
             return anchor
 
@@ -81,24 +84,22 @@ class POVMarketMakerAgent(TradingAgent):
             self.state = self.initialiseState()
 
         elif can_trade and not self.subscribe:
+            self.cancelAllOrders()
+            self.delay(self.cancel_limit_delay)
             self.getCurrentSpread(self.symbol, depth=self.subscribe_num_levels)
             self.get_transacted_volume(self.symbol, lookback_period=self.wake_up_freq)
             self.initialiseState()
 
     def receiveMessage(self, currentTime, msg):
         """ Processes message from exchange. Main function is to update orders in orderbook relative to mid-price.
-
         :param simulation current time
         :param message received by self from ExchangeAgent
-
         :type currentTime: pd.Timestamp
         :type msg: str
-
         :return:
         """
 
         super().receiveMessage(currentTime, msg)
-
         if self.last_mid is not None:
             mid = self.last_mid
 
@@ -114,10 +115,12 @@ class POVMarketMakerAgent(TradingAgent):
                     self.last_mid = mid
                     self.state['AWAITING_SPREAD'] = False
                 else:
-                    log_print(f"SPREAD MISSING at time {currentTime}")
+                    log_print("SPREAD MISSING at time {}", currentTime)
+                    self.state['AWAITING_SPREAD'] = False  # use last mid price
 
             if self.state['AWAITING_SPREAD'] is False and self.state['AWAITING_TRANSACTED_VOLUME'] is False:
-                self.cancelAllOrders()
+                # self.cancelAllOrders()
+                # self.delay(self.cancel_limit_delay)
                 self.placeOrders(mid)
                 self.state = self.initialiseState()
                 self.setWakeup(currentTime + self.getWakeFrequency())
@@ -131,7 +134,7 @@ class POVMarketMakerAgent(TradingAgent):
                     self.last_mid = mid
                     self.state['AWAITING_MARKET_DATA'] = False
                 else:
-                    log_print(f"SPREAD MISSING at time {currentTime}")
+                    log_print("SPREAD MISSING at time {}", currentTime)
                     self.state['AWAITING_MARKET_DATA'] = False
 
             if self.state['MARKET_DATA'] is False and self.state['AWAITING_TRANSACTED_VOLUME'] is False:
@@ -146,14 +149,15 @@ class POVMarketMakerAgent(TradingAgent):
     def computeOrdersToPlace(self, mid):
         """ Given a mid price, computes the orders that need to be removed from orderbook, and adds these orders to
             bid and ask deques.
-
         :param mid: mid-price
         :type mid: int
-
         :return:
         """
 
-        if self.anchor == ANCHOR_BOTTOM_STR:
+        if self.anchor == ANCHOR_MIDDLE_STR:
+            highest_bid = int(mid) - floor(0.5 * self.window_size)
+            lowest_ask = int(mid) + ceil(0.5 * self.window_size)
+        elif self.anchor == ANCHOR_BOTTOM_STR:
             highest_bid = int(mid - 1)
             lowest_ask = int(mid + self.window_size)
         elif self.anchor == ANCHOR_TOP_STR:
@@ -170,19 +174,17 @@ class POVMarketMakerAgent(TradingAgent):
 
     def placeOrders(self, mid):
         """ Given a mid-price, compute new orders that need to be placed, then send the orders to the Exchange.
-
             :param mid: mid-price
             :type mid: int
-
         """
 
         bid_orders, ask_orders = self.computeOrdersToPlace(mid)
         for bid_price in bid_orders:
-            log_print(f'{self.name}: Placing BUY limit order of size {self.order_size} @ price {bid_price}')
+            log_print('{}: Placing BUY limit order of size {} @ price {}', self.name, self.order_size, bid_price)
             self.placeLimitOrder(self.symbol, self.order_size, True, bid_price)
 
         for ask_price in ask_orders:
-            log_print(f'{self.name}: Placing SELL limit order of size {self.order_size} @ price {ask_price}')
+            log_print('{}: Placing SELL limit order of size {} @ price {}', self.name, self.order_size, ask_price)
             self.placeLimitOrder(self.symbol, self.order_size, False, ask_price)
 
     def getWakeFrequency(self):

@@ -16,3 +16,4 @@ six==1.12.0
 tqdm==4.36.1
 psutil==5.7.0
 optuna==1.2.0
+pomegranate==0.13.3

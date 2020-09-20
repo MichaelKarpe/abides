@@ -27,9 +27,8 @@ def be_silent ():
   return silent_mode
 
 
-# Utility method to flatten nested lists.
-def delist(list_of_lists):
-    return [x for b in list_of_lists for x in b]
+def get_rand_obj(seed_obj):
+  return np.random.RandomState(seed = seed_obj.randint(low = 0, high = 2**32))
 
 # Utility function to get agent wake up times to follow a U-quadratic distribution.
 def get_wake_time(open_time, close_time, a=0, b=1):

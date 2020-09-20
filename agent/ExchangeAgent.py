@@ -24,7 +24,7 @@ from copy import deepcopy
 class ExchangeAgent(FinancialAgent):
 
   def __init__(self, id, name, type, mkt_open, mkt_close, symbols, book_freq='S', wide_book=False, pipeline_delay = 40000,
-               computation_delay = 1, stream_history = 0, log_orders = False, random_state = None):
+               computation_delay = 1, stream_history = 0, log_events=True, log_orders = False, random_state = None):
 
     super().__init__(id, name, type, random_state)
 

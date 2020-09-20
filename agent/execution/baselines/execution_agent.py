@@ -11,6 +11,7 @@ class ExecutionAgent(TradingAgent):
                  direction, quantity, execution_time_horizon,
                  trade=True, log_orders=False, random_state=None):
         super().__init__(id, name, type, starting_cash=starting_cash, log_orders=log_orders, random_state=random_state)
+
         self.symbol = symbol
         self.direction = direction
         self.quantity = quantity
@@ -19,13 +20,13 @@ class ExecutionAgent(TradingAgent):
         self.start_time = self.execution_time_horizon[0]
         self.end_time = self.execution_time_horizon[-1]
         self.schedule = None
-
         self.rem_quantity = quantity
         self.arrival_price = None
 
+        self.state = 'AWAITING_WAKEUP'
+        self.log_orders = log_orders
         self.accepted_orders = []
         self.trade = trade
-        self.log_orders = log_orders
 
     def kernelStopping(self):
         super().kernelStopping()
